@@ -11,7 +11,8 @@ from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 from xgboost import XGBClassifier
 
 # Import WHO standard formulas to help generate realistic synthetic data
-from who_standards import interpolate_standard
+from .who_standards import interpolate_standard
+
 
 # Set random seed for reproducibility
 np.random.seed(42)
