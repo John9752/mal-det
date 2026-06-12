@@ -31,18 +31,31 @@ _keys_expiry = 0
 def get_google_public_keys():
     global _public_keys, _keys_expiry
     now = time.time()
-    if not _public_keys or now > _keys_expiry:
-        try:
-            with urllib.request.urlopen(GOOGLE_CERTS_URL, timeout=5) as response:
-                _public_keys = json.loads(response.read().decode("utf-8"))
-                _keys_expiry = now + 3600
-        except Exception as e:
-            print(f"Failed to fetch Google public keys: {e}")
-            if not _public_keys:
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Authentication server communication error"
-                )
+    
+    # If keys are still valid in cache, return them immediately
+    if _public_keys and now < _keys_expiry:
+        return _public_keys
+        
+    # Attempt to fetch new keys
+    try:
+        # Use a slightly longer timeout and specific error handling
+        with urllib.request.urlopen(GOOGLE_CERTS_URL, timeout=8) as response:
+            _public_keys = json.loads(response.read().decode("utf-8"))
+            # Cache for 1 hour
+            _keys_expiry = now + 3600
+            print("Successfully refreshed Google public keys.")
+    except Exception as e:
+        print(f"Warning: Failed to fetch Google public keys: {e}")
+        # If we have old keys, extend their life slightly rather than crashing
+        if _public_keys:
+            print("Using expired public keys as fallback.")
+            _keys_expiry = now + 300 # Try again in 5 minutes
+        else:
+            # Only raise if we have absolutely no keys to work with
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Authentication server communication error. Please try again in a few moments."
+            )
     return _public_keys
 
 

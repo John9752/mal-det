@@ -135,30 +135,55 @@ export default function AuthPage({ onLogin }) {
       }
 
       // Sync user data with local backend DB to persist center_name / full_name
-      const syncRes = await fetch(`${API_URL}/api/auth/sync`, {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${idToken}`
-        },
-        body: JSON.stringify({
-          uid: syncUid,
-          email: syncEmail,
-          full_name: syncName,
-          center_name: centerName || null
-        }),
-      });
+      let syncData = { id: syncUid, full_name: syncName, email: syncEmail, center_name: centerName || null, created_at: new Date().toISOString() };
+      
+      try {
+        console.log("Starting user sync with backend...");
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 seconds timeout
+        
+        const syncRes = await fetch(`${API_URL}/api/auth/sync`, {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${idToken}`
+          },
+          body: JSON.stringify({
+            uid: syncUid,
+            email: syncEmail,
+            full_name: syncName,
+            center_name: centerName || null
+          }),
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
 
-      const syncData = await syncRes.json();
-
-      if (!syncRes.ok) {
-        throw new Error(syncData.detail || "Failed to sync user with local DB");
+        if (syncRes.ok) {
+          const fetchedData = await syncRes.json();
+          syncData = fetchedData;
+          console.log("User sync successful:", syncData);
+        } else {
+          const errorData = await syncRes.json().catch(() => ({}));
+          console.warn("User sync failed but proceeding with local info:", errorData.detail || syncRes.statusText);
+          // If we're just logging in, a sync failure is more critical than during registration
+          if (mode === "login") throw new Error(errorData.detail || "Failed to sync user with local DB");
+        }
+      } catch (syncErr) {
+        console.error("Backend sync error:", syncErr);
+        // During registration, we don't want to block the user if the record just failed to sync to the local DB secondary.
+        // The App.jsx's validateToken will try to fix the profile on next mount.
+        if (mode === "login") throw syncErr;
       }
 
       // Store token & user info
       localStorage.setItem("poshanai_token", idToken);
       localStorage.setItem("poshanai_user", JSON.stringify(syncData));
-      onLogin(idToken, syncData);
+      
+      // Give a tiny delay to ensure localStorage is set before unmounting
+      setTimeout(() => {
+        onLogin(idToken, syncData);
+      }, 100);
     } catch (err) {
       console.error(err);
       let errMsg = err.message;
