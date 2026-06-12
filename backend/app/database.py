@@ -2,7 +2,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-DATABASE_URL = "sqlite:///./malnutrition.db"
+import os
+
+database_path = os.getenv("DATABASE_PATH", "./malnutrition.db")
+DATABASE_URL = f"sqlite:///{database_path}"
 
 engine = create_engine(
     DATABASE_URL, connect_args={"check_same_thread": False}
