@@ -1,13 +1,14 @@
 import React, { useState } from "react";
 import { Mail, Lock, User, Building2, Eye, EyeOff, ArrowRight, ShieldCheck, HeartPulse } from "lucide-react";
 import { auth } from "../firebase";
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, sendPasswordResetEmail } from "firebase/auth";
 import API_URL from "../api";
 
 export default function AuthPage({ onLogin }) {
-  const [mode, setMode] = useState("login"); // "login" | "register"
+  const [mode, setMode] = useState("login"); // "login" | "register" | "forgot"
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
 
   // Form fields
   const [fullName, setFullName] = useState("");
@@ -19,6 +20,7 @@ export default function AuthPage({ onLogin }) {
 
   const resetFields = () => {
     setError("");
+    setMessage("");
     setFullName("");
     setEmail("");
     setPassword("");
@@ -58,6 +60,37 @@ export default function AuthPage({ onLogin }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setMessage("");
+
+    if (mode === "forgot") {
+      if (!email.trim()) return setError("Please enter your email address");
+      
+      const isMockFirebase = !import.meta.env.VITE_FIREBASE_API_KEY || 
+                             import.meta.env.VITE_FIREBASE_API_KEY.includes("DummyKey") || 
+                             import.meta.env.VITE_FIREBASE_API_KEY === "";
+
+      setLoading(true);
+      try {
+        if (isMockFirebase) {
+          setMessage("Simulated password reset email has been sent to " + email);
+        } else {
+          await sendPasswordResetEmail(auth, email);
+          setMessage("A password reset link has been sent to " + email);
+        }
+      } catch (err) {
+        console.error(err);
+        let errMsg = err.message;
+        if (err.code === "auth/user-not-found") {
+          errMsg = "No account found with this email address";
+        } else if (err.code === "auth/invalid-email") {
+          errMsg = "Invalid email address";
+        }
+        setError(errMsg);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
 
     // Validation
     if (mode === "register") {
@@ -205,27 +238,48 @@ export default function AuthPage({ onLogin }) {
         </div>
 
         {/* Tab Switcher */}
-        <div style={{
-          display: "flex", background: "rgba(15,23,42,0.5)", borderRadius: "12px",
-          padding: "4px", marginBottom: "28px", border: "1px solid rgba(255,255,255,0.06)"
-        }}>
-          {["login", "register"].map((m) => (
-            <button
-              key={m}
-              onClick={() => switchMode(m)}
-              style={{
-                flex: 1, padding: "10px 0", borderRadius: "9px", border: "none",
-                background: mode === m ? "linear-gradient(135deg, #6366f1, #4f46e5)" : "transparent",
-                color: mode === m ? "#fff" : "#64748b",
-                fontWeight: "600", fontSize: "0.9rem", cursor: "pointer",
-                transition: "all 0.25s ease",
-                boxShadow: mode === m ? "0 4px 12px rgba(99,102,241,0.25)" : "none"
-              }}
-            >
-              {m === "login" ? "Sign In" : "Create Account"}
-            </button>
-          ))}
-        </div>
+        {mode !== "forgot" ? (
+          <div style={{
+            display: "flex", background: "rgba(15,23,42,0.5)", borderRadius: "12px",
+            padding: "4px", marginBottom: "28px", border: "1px solid rgba(255,255,255,0.06)"
+          }}>
+            {["login", "register"].map((m) => (
+              <button
+                key={m}
+                onClick={() => switchMode(m)}
+                style={{
+                  flex: 1, padding: "10px 0", borderRadius: "9px", border: "none",
+                  background: mode === m ? "linear-gradient(135deg, #6366f1, #4f46e5)" : "transparent",
+                  color: mode === m ? "#fff" : "#64748b",
+                  fontWeight: "600", fontSize: "0.9rem", cursor: "pointer",
+                  transition: "all 0.25s ease",
+                  boxShadow: mode === m ? "0 4px 12px rgba(99,102,241,0.25)" : "none"
+                }}
+              >
+                {m === "login" ? "Sign In" : "Create Account"}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div style={{ marginBottom: "24px", textAlign: "center" }}>
+            <h2 style={{ fontSize: "1.2rem", fontWeight: "700", color: "#fff" }}>Reset Password</h2>
+            <p style={{ color: "#94a3b8", fontSize: "0.85rem", marginTop: "4px" }}>
+              Enter your email below and we'll send you a password reset link.
+            </p>
+          </div>
+        )}
+
+        {/* Success Message Banner */}
+        {message && (
+          <div style={{
+            background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.3)",
+            borderRadius: "10px", padding: "10px 14px", marginBottom: "18px",
+            color: "#34d399", fontSize: "0.85rem", fontWeight: "500",
+            display: "flex", alignItems: "center", gap: "8px"
+          }}>
+            <ShieldCheck size={16} /> {message}
+          </div>
+        )}
 
         {/* Error Banner */}
         {error && (
@@ -259,22 +313,40 @@ export default function AuthPage({ onLogin }) {
             type="email"
           />
 
-          <InputField
-            icon={<Lock size={17} color="#6366f1" />}
-            placeholder="Password"
-            value={password}
-            onChange={setPassword}
-            type={showPassword ? "text" : "password"}
-            suffix={
+          {mode !== "forgot" && (
+            <InputField
+              icon={<Lock size={17} color="#6366f1" />}
+              placeholder="Password"
+              value={password}
+              onChange={setPassword}
+              type={showPassword ? "text" : "password"}
+              suffix={
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b", display: "flex", padding: "4px" }}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              }
+            />
+          )}
+
+          {mode === "login" && (
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "-6px" }}>
               <button
                 type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b", display: "flex", padding: "4px" }}
+                onClick={() => switchMode("forgot")}
+                style={{
+                  background: "none", border: "none", color: "#a5b4fc",
+                  fontSize: "0.82rem", fontWeight: "500", cursor: "pointer",
+                  padding: "0", transition: "color 0.2s"
+                }}
               >
-                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                Forgot Password?
               </button>
-            }
-          />
+            </div>
+          )}
 
           {mode === "register" && (
             <>
@@ -312,15 +384,35 @@ export default function AuthPage({ onLogin }) {
           >
             {loading ? (
               <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <span className="auth-spinner" /> {mode === "login" ? "Signing in..." : "Creating account..."}
+                <span className="auth-spinner" /> {mode === "login" ? "Signing in..." : mode === "forgot" ? "Sending link..." : "Creating account..."}
               </span>
             ) : (
               <>
-                {mode === "login" ? "Sign In" : "Create Account"}
+                {mode === "login" ? "Sign In" : mode === "forgot" ? "Send Reset Link" : "Create Account"}
                 <ArrowRight size={18} />
               </>
             )}
           </button>
+          
+          {mode === "forgot" && (
+            <button
+              type="button"
+              onClick={() => switchMode("login")}
+              style={{
+                background: "none",
+                border: "none",
+                color: "#94a3b8",
+                fontSize: "0.85rem",
+                fontWeight: "600",
+                cursor: "pointer",
+                textAlign: "center",
+                marginTop: "8px",
+                textDecoration: "underline"
+              }}
+            >
+              Back to Sign In
+            </button>
+          )}
         </form>
 
         {/* Footer */}
