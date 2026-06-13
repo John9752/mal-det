@@ -62,14 +62,17 @@ export default function App() {
           }
         });
         if (res.status === 401) {
+          console.warn("Session expired or invalid token.");
           handleLogout();
         } else if (res.ok) {
           const userData = await res.json();
           setUser(userData);
           localStorage.setItem("poshanai_user", JSON.stringify(userData));
+        } else {
+          console.error("Failed to sync profile. Backend might be down.");
         }
       } catch (err) {
-        console.error("Token validation failed:", err);
+        console.error("Token validation failed (connectivity issue):", err);
       }
     };
     validateToken();

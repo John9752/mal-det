@@ -107,15 +107,15 @@ export default function AuthPage({ onLogin }) {
 
     setLoading(true);
     try {
+      const syncName = fullName || email.split("@")[0];
+      const syncEmail = email.toLowerCase().trim(); // Normalize email
       let idToken;
       let syncUid;
-      let syncEmail = email;
-      let syncName = fullName;
 
       if (isMockFirebase) {
         // Offline mock authentication mode
-        idToken = generateMockJWT(email, fullName || email.split("@")[0]);
-        syncUid = "mock_" + btoa(email).replace(/[^a-zA-Z0-9]/g, "").slice(0, 15);
+        idToken = generateMockJWT(syncEmail, syncName);
+        syncUid = "mock_" + btoa(syncEmail).replace(/[^a-zA-Z0-9]/g, "").slice(0, 15);
       } else {
         // Real Firebase Auth
         let userCredential;
@@ -140,7 +140,7 @@ export default function AuthPage({ onLogin }) {
       try {
         console.log("Starting user sync with backend...");
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort("timeout"), 15000); // 15 seconds timeout
+        const timeoutId = setTimeout(() => controller.abort("timeout"), 30000); // 30 seconds timeout
         
         const syncRes = await fetch(`${API_URL}/api/auth/sync`, {
           method: "POST",
@@ -172,15 +172,11 @@ export default function AuthPage({ onLogin }) {
       } catch (syncErr) {
         console.error("Backend sync error:", syncErr);
         
-        // Handle timeout specifically
-        if (syncErr.name === 'AbortError' || syncErr === 'timeout') {
-          const timeoutMsg = "Connection timeout: The server is taking too long to respond. Please try again.";
-          if (mode === "login") throw new Error(timeoutMsg);
-          console.warn(timeoutMsg);
+        // If synchronization fails, we must inform the user because their data won't persist
+        if (mode === "register") {
+          alert("Warning: Could not sync your profile with the cloud. Your data might not be saved across sessions. Please check your connection and try logging in again.");
         }
-
-        // During registration, we don't want to block the user if the record just failed to sync to the local DB secondary.
-        // The App.jsx's validateToken will try to fix the profile on next mount.
+        
         if (mode === "login") throw syncErr;
       }
 

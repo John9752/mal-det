@@ -86,8 +86,14 @@ def sync_user(data: UserSync, db: Session = Depends(get_db), current_fb_user: di
         user.full_name = data.full_name
         if data.center_name:
             user.center_name = data.center_name
-    db.commit()
-    db.refresh(user)
+    try:
+        db.commit()
+        db.refresh(user)
+        print(f"Successfully synced user: {user.email}")
+    except Exception as e:
+        db.rollback()
+        print(f"FAILED to sync user {data.email}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Database error during profile sync")
     return user
 
 
@@ -135,9 +141,16 @@ def create_child(child: ChildCreate, db: Session = Depends(get_db), current_fb_u
         state=child.state,
         worker_id=local_user.id
     )
-    db.add(db_child)
-    db.commit()
-    db.refresh(db_child)
+    try:
+        db.add(db_child)
+        db.commit()
+        db.refresh(db_child)
+        print(f"Successfully registered child: {db_child.name} for worker {current_fb_user['uid']}")
+    except Exception as e:
+        db.rollback()
+        print(f"FAILED to register child {child.name}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Database error during child registration")
+        
     return db_child
 
 

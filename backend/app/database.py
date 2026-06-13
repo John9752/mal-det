@@ -7,13 +7,14 @@ from pathlib import Path
 
 # Get database path from environment or default to local file
 database_env = os.getenv("DATABASE_PATH", "./malnutrition.db")
+# Ensure the path is absolute to avoid relative path issues when starting from different dirs
 db_path = Path(database_env).resolve()
 
 # Critical: Ensure the directory exists (especially for Render /data mounts)
 db_path.parent.mkdir(parents=True, exist_ok=True)
 
 DATABASE_URL = f"sqlite:///{db_path}"
-print(f"DATABASE_URL: {DATABASE_URL}")
+print(f"DATABASE_URL: {DATABASE_URL} (Resolved and Persistent)")
 
 engine = create_engine(
     DATABASE_URL, connect_args={"check_same_thread": False}
