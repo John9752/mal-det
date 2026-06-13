@@ -25,9 +25,9 @@ def get_nutrition_recommendations(status: str, age_months: float, weight_kg: flo
     required_protein = round(weight_kg * protein_per_kg, 1)
 
     # 2. Determine Indian Region based on State
-    south_states = ["andhra pradesh", "telangana", "tamil nadu", "karnataka", "kerala", "pondicherry"]
-    north_states = ["delhi", "punjab", "haryana", "uttar pradesh", "himachal pradesh", "jammu", "kashmir", "uttarakhand"]
-    east_states = ["west bengal", "bihar", "odisha", "jharkhand", "assam", "tripura", "manipur", "meghalaya", "mizoram", "nagaland", "arunachal pradesh", "sikkim"]
+    south_states = ["andhra pradesh", "andhrapradesh", "telangana", "tamil nadu", "tamillnadu", "karnataka", "kerala", "pondicherry"]
+    north_states = ["delhi", "punjab", "haryana", "uttar pradesh", "uttarpradesh", "himachal pradesh", "himachalpradesh", "jammu", "kashmir", "uttarakhand"]
+    east_states = ["west bengal", "westbengal", "bihar", "odisha", "jharkhand", "assam", "tripura", "manipur", "meghalaya", "mizoram", "nagaland", "arunachal pradesh", "arunachalpradesh", "sikkim"]
     
     state_lower = state.lower().strip()
     if any(s in state_lower for s in south_states):
