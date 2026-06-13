@@ -107,8 +107,8 @@ export default function AuthPage({ onLogin }) {
 
     setLoading(true);
     try {
-      const syncName = fullName || email.split("@")[0];
-      const syncEmail = email.toLowerCase().trim(); // Normalize email
+      let syncName = fullName || email.split("@")[0];
+      let syncEmail = email.toLowerCase().trim(); // Normalize email
       let idToken;
       let syncUid;
 
