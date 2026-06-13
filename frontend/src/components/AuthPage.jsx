@@ -140,7 +140,7 @@ export default function AuthPage({ onLogin }) {
       try {
         console.log("Starting user sync with backend...");
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 seconds timeout
+        const timeoutId = setTimeout(() => controller.abort("timeout"), 15000); // 15 seconds timeout
         
         const syncRes = await fetch(`${API_URL}/api/auth/sync`, {
           method: "POST",
@@ -171,6 +171,14 @@ export default function AuthPage({ onLogin }) {
         }
       } catch (syncErr) {
         console.error("Backend sync error:", syncErr);
+        
+        // Handle timeout specifically
+        if (syncErr.name === 'AbortError' || syncErr === 'timeout') {
+          const timeoutMsg = "Connection timeout: The server is taking too long to respond. Please try again.";
+          if (mode === "login") throw new Error(timeoutMsg);
+          console.warn(timeoutMsg);
+        }
+
         // During registration, we don't want to block the user if the record just failed to sync to the local DB secondary.
         // The App.jsx's validateToken will try to fix the profile on next mount.
         if (mode === "login") throw syncErr;
